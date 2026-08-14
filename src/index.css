@@ -1,0 +1,19 @@
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes: synthwave --default, aqua;
+}
+
+@layer base {
+  html { min-height: 100%; background: oklch(var(--b2)); }
+  body { min-width: 320px; min-height: 100vh; }
+  button, input, select { font: inherit; }
+}
+
+@layer components {
+  .app-page { padding-bottom: calc(5.5rem + env(safe-area-inset-bottom)); }
+  .task-row { @apply flex min-h-12 w-full items-center gap-2 rounded-xl border border-base-content/10 bg-base-100/70 px-3 text-left transition hover:-translate-y-px hover:bg-base-100 focus:outline-2 focus:outline-offset-2 focus:outline-primary; }
+}
+
+@media (min-width: 768px) {
+  .app-page { padding-bottom: 2rem; }
+}
