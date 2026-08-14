@@ -11,6 +11,10 @@
 
 @layer components {
   .app-page { padding-bottom: calc(5.5rem + env(safe-area-inset-bottom)); }
+  .theme-accent { @apply text-primary; }
+  [data-theme="synthwave"] .theme-accent { @apply text-secondary; }
+  .theme-button { @apply btn-primary; }
+  [data-theme="synthwave"] .theme-button { @apply btn-secondary; }
   .task-row { @apply flex min-h-12 w-full items-center gap-2 rounded-xl border border-base-content/10 bg-base-100/70 px-3 text-left transition hover:-translate-y-px hover:bg-base-100 focus:outline-2 focus:outline-offset-2 focus:outline-primary; }
 }
 
