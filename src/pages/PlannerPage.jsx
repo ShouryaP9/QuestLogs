@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useOutletContext } from 'react-router-dom'
 
 const columns = [
   { id: 'today', title: 'Today', color: 'border-t-teal-400' },
@@ -6,34 +7,39 @@ const columns = [
   { id: 'week', title: 'This week', color: 'border-t-purple-400' },
   { id: 'unassigned', title: 'Unassigned', color: 'border-t-pink-400' },
 ]
-const initialTasks = { today: [{ id: 'test-quest', name: 'Test quest', gems: 1 }], tomorrow: [], week: [], unassigned: [] }
 
 export function PlannerPage() {
-  const [tasks, setTasks] = useState(initialTasks)
-  const [activeColumn, setActiveColumn] = useState(null)
+  const { tasks, addTask, updateTask, removeTask, finishTask } = useOutletContext()
+  const [editor, setEditor] = useState(null)
+  const [selected, setSelected] = useState(null)
   const [name, setName] = useState('')
   const [gemValue, setGemValue] = useState(1)
 
-  const openTaskDialog = (column) => { setActiveColumn(column); setName(''); setGemValue(1) }
-  const addTask = (event) => {
+  const openEditor = (column, task = null) => { setSelected(null); setEditor({ column, task }); setName(task?.name || ''); setGemValue(task?.gems ?? 1) }
+  const saveTask = (event) => {
     event.preventDefault()
     if (!name.trim()) return
-    setTasks((current) => ({ ...current, [activeColumn]: [...current[activeColumn], { id: crypto.randomUUID(), name: name.trim(), gems: Number(gemValue) }] }))
-    setActiveColumn(null)
+    const task = { id: editor.task?.id || crypto.randomUUID(), name: name.trim(), gems: Number(gemValue) }
+    if (editor.task) updateTask(editor.column, task); else addTask(editor.column, task)
+    setEditor(null)
   }
+  const closeActionMenu = () => setSelected(null)
+  const completeSelected = () => { finishTask(selected.column, selected.task); closeActionMenu() }
+  const deleteSelected = () => { removeTask(selected.column, selected.task.id); closeActionMenu() }
+
   return <>
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-      <div><p className="theme-accent text-sm font-semibold uppercase tracking-widest">Your quest board</p><h1 className="text-3xl font-black md:text-4xl">Make today count.</h1></div>
-    </div>
-    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {columns.map((column) => <article key={column.id} className={`rounded-2xl border border-base-content/10 border-t-4 ${column.color} bg-base-100 p-3 shadow-sm`}>
+    <div className="mb-6"><p className="theme-accent text-sm font-semibold uppercase tracking-widest">Your quest board</p><h1 className="text-3xl font-black md:text-4xl">Make today count.</h1></div>
+    <section className="grid gap-8 sm:grid-cols-2 xl:-mr-8 xl:grid-cols-4">
+      {columns.map((column) => <article key={column.id} className={`parchment-surface rounded-2xl border border-t-4 ${column.color} p-3 shadow-sm`}>
         <div className="mb-3 flex items-center justify-between"><h2 className="font-bold">{column.title}</h2><span className="badge badge-ghost badge-sm">{tasks[column.id].length}/9</span></div>
         <div className="space-y-2">
-          {tasks[column.id].map((task) => <div key={task.id} className="task-row"><span className="min-w-0 flex-1 truncate font-medium">{task.name}</span><span className="text-sm whitespace-nowrap">💎 {task.gems}</span></div>)}
-          {Array.from({ length: Math.max(1, 9 - tasks[column.id].length) }).map((_, index) => <button key={index} onClick={() => openTaskDialog(column.id)} className="task-row border-dashed text-base-content/45"><span className="text-lg">+</span> Add quest</button>)}
+          {tasks[column.id].map((task) => <button key={task.id} onClick={() => setSelected({ column: column.id, task })} className="parchment-task task-row"><span className="min-w-0 flex-1 truncate font-medium">{task.name}</span><span className="text-sm whitespace-nowrap">💎 {task.gems}</span></button>)}
+          {Array.from({ length: Math.max(0, 9 - tasks[column.id].length) }).map((_, index) => <button key={index} onClick={() => openEditor(column.id)} className="parchment-muted parchment-task task-row border-dashed"><span className="text-lg">+</span> Add quest</button>)}
         </div>
       </article>)}
     </section>
-    <dialog className={`modal ${activeColumn ? 'modal-open' : ''}`}><form method="dialog" onSubmit={addTask} className="modal-box"><button onClick={() => setActiveColumn(null)} type="button" className="btn btn-sm btn-circle btn-ghost absolute right-3 top-3">✕</button><h3 className="text-xl font-bold">Add a quest</h3><p className="mt-1 text-sm opacity-70">Start small. Every finish is progress.</p><label className="form-control mt-5"><span className="label-text mb-2 font-semibold">Quest name</span><input autoFocus value={name} onChange={(event) => setName(event.target.value)} className="input input-bordered w-full" placeholder="e.g. Review science notes" maxLength="120" /></label><label className="form-control mt-4"><span className="label-text mb-2 font-semibold">Gem count</span><select value={gemValue} onChange={(event) => setGemValue(event.target.value)} className="select select-bordered w-full">{[0, 1, 2, 3].map((value) => <option key={value} value={value}>{'💎 '.repeat(value) || 'No gems'} ({value})</option>)}</select></label><div className="modal-action"><button type="button" className="btn btn-ghost" onClick={() => setActiveColumn(null)}>Cancel</button><button className="btn theme-button" type="submit">Add quest</button></div></form></dialog>
+
+    <dialog className={`modal ${selected ? 'modal-open' : ''}`}><div className="parchment-surface modal-box"><button onClick={closeActionMenu} className="parchment-close btn btn-sm btn-circle btn-ghost absolute right-3 top-3">✕</button><h2 className="text-xl font-bold">{selected?.task.name}</h2><p className="mt-1 text-sm opacity-70">Choose what happens to this quest.</p><div className="mt-6 grid gap-3"><button onClick={completeSelected} className="btn parchment-button">Finish · earn {selected?.task.gems} 💎</button><button onClick={() => openEditor(selected.column, selected.task)} className="btn parchment-button">Edit</button><button onClick={deleteSelected} className="btn parchment-button">Delete</button></div></div></dialog>
+    <dialog className={`modal ${editor ? 'modal-open' : ''}`}><form method="dialog" onSubmit={saveTask} className="parchment-surface modal-box"><button onClick={() => setEditor(null)} type="button" className="parchment-close btn btn-sm btn-circle btn-ghost absolute right-3 top-3">✕</button><h2 className="text-xl font-bold">{editor?.task ? 'Edit quest' : 'Add a quest'}</h2><label className="form-control mt-5"><span className="label-text mb-2 font-semibold">Quest name</span><textarea autoFocus value={name} onChange={(event) => setName(event.target.value)} className="parchment-field textarea textarea-bordered min-h-24 w-full" placeholder="e.g. Review science notes" maxLength="500" /></label><label className="form-control mt-4"><span className="label-text mb-2 font-semibold">Gem count</span><select value={gemValue} onChange={(event) => setGemValue(event.target.value)} className="parchment-field select select-bordered w-full">{[0, 1, 2, 3].map((value) => <option key={value} value={value}>({value}) {value ? '💎 '.repeat(value) : 'No gems'}</option>)}</select></label><div className="modal-action"><button type="button" className="btn parchment-button" onClick={() => setEditor(null)}>Cancel</button><button className="btn parchment-button" type="submit">{editor?.task ? 'Save changes' : 'Add quest'}</button></div></form></dialog>
   </>
 }
