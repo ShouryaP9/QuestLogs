@@ -17,20 +17,29 @@
   [data-theme="synthwave"] .theme-button { @apply btn-secondary; }
   [data-theme="aqua"] .app-shell { background-color: #0077b8 !important; }
   [data-theme="aqua"] .app-header, [data-theme="aqua"] .app-nav { background-color: #00679f !important; }
+  .quest-progress { background-color: var(--color-base-100); color: #38bdf8; }
+  .quest-progress::-webkit-progress-bar { background-color: var(--color-base-100); }
+  .quest-progress::-webkit-progress-value { background-color: #38bdf8; }
+  .quest-progress::-moz-progress-bar { background-color: #38bdf8; }
+  [data-theme="aqua"] .quest-progress, [data-theme="aqua"] .quest-progress::-webkit-progress-bar { background-color: #00679f; }
+  .theme-empty-surface { background-color: var(--color-base-100); color: var(--color-base-content); }
+  [data-theme="aqua"] .theme-empty-surface { background-color: #00679f; }
   .parchment-surface, .modal-box.parchment-surface { background-color: #efdfbf !important; border-color: #cba97a; color: #4b3425; }
   [data-theme="synthwave"] .parchment-surface, [data-theme="synthwave"] .modal-box.parchment-surface { background-color: #e2cea9 !important; border-color: #b79464; color: #493322; }
   .parchment-surface .label-text { color: #4b3425; }
   .parchment-surface .parchment-close { color: #4b3425 !important; }
   .parchment-surface .badge { border-color: #cba97a; color: #6c4a32; }
   .parchment-field { background-color: #f8edda !important; border-color: #cba97a; color: #4b3425; }
-  [data-theme="synthwave"] .parchment-field { background-color: #e6d1ad !important; border-color: #b79464; color: #493322; }
+  [data-theme="synthwave"] .parchment-field { background-color: #f0dfbf !important; border-color: #b79464; color: #493322; }
   .parchment-muted { color: #76533a; }
   .btn.parchment-button { background-color: #b78355 !important; border-color: #9c6c42 !important; color: #fff9ef !important; }
   .btn.parchment-button:hover { background-color: #9c6c42 !important; border-color: #835532 !important; }
   .task-row.parchment-task { background-color: #f8edda; border-color: #cfb284; color: #4b3425; }
   .task-row.parchment-task:hover { background-color: #f3e3c9; }
+  .parchment-entry { background-color: #f8edda; border-color: #cfb284; color: #4b3425; }
   [data-theme="synthwave"] .task-row.parchment-task { background-color: #f0dfbf; border-color: #b79464; color: #493322; }
   [data-theme="synthwave"] .task-row.parchment-task:hover { background-color: #e8d3ae; }
+  [data-theme="synthwave"] .parchment-entry { background-color: #f0dfbf; border-color: #b79464; color: #493322; }
   .task-row { @apply flex min-h-12 w-full items-center gap-2 rounded-xl border border-base-content/10 bg-base-100/70 px-3 text-left transition hover:-translate-y-px hover:bg-base-100 focus:outline-2 focus:outline-offset-2 focus:outline-primary; }
 }
 
