@@ -35,7 +35,7 @@ export function LogsPage() {
   const removeTheme = () => { deleteTheme(selectedTheme.id); setSelectedTheme(null) }
 
   return <section className="logs-board xl:-mr-8">
-    <div className="mb-6"><p className="theme-accent text-sm font-semibold uppercase tracking-widest">Completed quests</p><h1 className="text-3xl font-black md:text-4xl">Your quest log.</h1><p className="mt-2 text-sm opacity-70">Right-click a theme column to edit or delete it.</p></div>
+    <div className="mb-6"><p className="theme-accent text-sm font-semibold uppercase tracking-widest">Completed quests</p><h1 className="page-title text-3xl font-black md:text-4xl">Your quest log</h1><p className="mt-2 text-sm opacity-70">Right-click a theme column to edit or delete it.</p></div>
     <div className="grid gap-8 sm:grid-cols-2 xl:grid-cols-[repeat(4,minmax(18rem,1fr))]">
       {slots.map((theme, index) => theme ? <ThemeColumn key={theme.id} theme={theme} dates={dates} logs={logs} onContextMenu={(event) => { event.preventDefault(); setSelectedTheme(theme) }} /> : <button key={`empty-${index}`} onClick={() => openEditor()} className="theme-empty-surface flex min-h-[calc(100vh+10rem)] flex-col items-center justify-center rounded-2xl border-2 border-dashed p-5 text-center shadow-sm transition hover:-translate-y-0.5"><span className="text-3xl">+</span><span className="mt-2 font-semibold">Add theme</span></button>)}
     </div>
