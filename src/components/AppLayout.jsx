@@ -43,6 +43,7 @@ export function AppLayout() {
   const [dataLoaded, setDataLoaded] = useState(false)
   const [loadError, setLoadError] = useState(null)
   const [retryTick, setRetryTick] = useState(0)
+  const [syncError, setSyncError] = useState(null)
 
   useEffect(() => { document.documentElement.dataset.theme = colorMode; localStorage.setItem('questlogs-color-mode', colorMode) }, [colorMode])
 
@@ -121,17 +122,18 @@ export function AppLayout() {
   }, [userId, retryTick])
 
   // --- mutations (optimistic local update + write to Supabase) -----------
+  const reportIfFailed = (promise, what) => { promise.then(({ error }) => { if (error) setSyncError(`Couldn't save (${what}): ${error.message}`) }) }
   const addTask = (column, task) => {
     setTasks((current) => ({ ...current, [column]: [...current[column], { ...task, position: Date.now() }] }))
-    supabase.from('tasks').insert({ id: task.id, user_id: userId, column_id: column, name: task.name, time: task.time, description: task.description, gems: task.gems, theme_id: task.themeId || null, position: Date.now() })
+    reportIfFailed(supabase.from('tasks').insert({ id: task.id, user_id: userId, column_id: column, name: task.name, time: task.time, description: task.description, gems: task.gems, theme_id: task.themeId || null, position: Date.now() }), 'add quest')
   }
   const updateTask = (column, updatedTask) => {
     setTasks((current) => ({ ...current, [column]: current[column].map((task) => task.id === updatedTask.id ? { ...task, ...updatedTask } : task) }))
-    supabase.from('tasks').update({ name: updatedTask.name, time: updatedTask.time, description: updatedTask.description, gems: updatedTask.gems, theme_id: updatedTask.themeId || null }).eq('id', updatedTask.id)
+    reportIfFailed(supabase.from('tasks').update({ name: updatedTask.name, time: updatedTask.time, description: updatedTask.description, gems: updatedTask.gems, theme_id: updatedTask.themeId || null }).eq('id', updatedTask.id), 'edit quest')
   }
   const removeTask = (column, id) => {
     setTasks((current) => ({ ...current, [column]: current[column].filter((task) => task.id !== id) }))
-    supabase.from('tasks').delete().eq('id', id)
+    reportIfFailed(supabase.from('tasks').delete().eq('id', id), 'delete quest')
   }
   const finishTask = (column, task) => {
     removeTask(column, task.id)
@@ -140,35 +142,35 @@ export function AppLayout() {
     setLogs((current) => ({ ...current, [date]: [{ id: task.id, name: task.name, gems: task.gems, themeId: task.themeId, completedAt }, ...(current[date] || [])] }))
     const newGems = gems + task.gems
     setGems(newGems)
-    supabase.from('completed_tasks').insert({ user_id: userId, name: task.name, gems: task.gems, theme_id: task.themeId || null, completed_date: date, completed_at: completedAt })
-    supabase.from('user_settings').update({ gems: newGems }).eq('user_id', userId)
+    reportIfFailed(supabase.from('completed_tasks').insert({ user_id: userId, name: task.name, gems: task.gems, theme_id: task.themeId || null, completed_date: date, completed_at: completedAt }), 'log finished quest')
+    reportIfFailed(supabase.from('user_settings').update({ gems: newGems }).eq('user_id', userId), 'update gem total')
   }
   const rolloverToToday = () => {
     const todayIds = tasks.today.map((task) => task.id)
     const tomorrowIds = tasks.tomorrow.map((task) => task.id)
     const carriedOver = tasks.tomorrow.map((task, index) => ({ ...task, id: crypto.randomUUID(), position: Date.now() + index }))
     setTasks((current) => ({ ...current, today: carriedOver, tomorrow: [] }))
-    if (todayIds.length) supabase.from('tasks').delete().in('id', todayIds)
-    if (carriedOver.length) supabase.from('tasks').insert(carriedOver.map((task) => ({ id: task.id, user_id: userId, column_id: 'today', name: task.name, time: task.time, description: task.description, gems: task.gems, theme_id: task.themeId || null, position: task.position })))
-    if (tomorrowIds.length) supabase.from('tasks').delete().in('id', tomorrowIds)
+    if (todayIds.length) reportIfFailed(supabase.from('tasks').delete().in('id', todayIds), 'clear today')
+    if (carriedOver.length) reportIfFailed(supabase.from('tasks').insert(carriedOver.map((task) => ({ id: task.id, user_id: userId, column_id: 'today', name: task.name, time: task.time, description: task.description, gems: task.gems, theme_id: task.themeId || null, position: task.position }))), 'copy tomorrow into today')
+    if (tomorrowIds.length) reportIfFailed(supabase.from('tasks').delete().in('id', tomorrowIds), 'clear tomorrow')
   }
   const addTheme = (theme) => {
     setThemes((current) => [...current, theme])
-    supabase.from('themes').insert({ id: theme.id, user_id: userId, name: theme.name, color: theme.color })
+    reportIfFailed(supabase.from('themes').insert({ id: theme.id, user_id: userId, name: theme.name, color: theme.color }), 'add theme')
   }
   const updateTheme = (updatedTheme) => {
     setThemes((current) => current.map((theme) => theme.id === updatedTheme.id ? updatedTheme : theme))
-    supabase.from('themes').update({ name: updatedTheme.name, color: updatedTheme.color }).eq('id', updatedTheme.id)
+    reportIfFailed(supabase.from('themes').update({ name: updatedTheme.name, color: updatedTheme.color }).eq('id', updatedTheme.id), 'edit theme')
   }
   const deleteTheme = (id) => {
     setThemes((current) => current.filter((theme) => theme.id !== id))
     setTasks((current) => Object.fromEntries(Object.entries(current).map(([column, columnTasks]) => [column, columnTasks.map((task) => task.themeId === id ? { ...task, themeId: null } : task)])))
     setLogs((current) => Object.fromEntries(Object.entries(current).map(([date, dateTasks]) => [date, dateTasks.map((task) => task.themeId === id ? { ...task, themeId: null } : task)])))
-    supabase.from('themes').delete().eq('id', id) // FK "on delete set null" clears theme_id on tasks/completed_tasks server-side
+    reportIfFailed(supabase.from('themes').delete().eq('id', id), 'delete theme') // FK "on delete set null" clears theme_id on tasks/completed_tasks server-side
   }
   const setGoal = (nextGoal) => {
     setGoalState(nextGoal)
-    supabase.from('user_settings').update({ gem_goal: nextGoal }).eq('user_id', userId)
+    reportIfFailed(supabase.from('user_settings').update({ gem_goal: nextGoal }).eq('user_id', userId), 'update gem goal')
   }
   const signOut = () => supabase.auth.signOut()
 
@@ -190,6 +192,7 @@ export function AppLayout() {
           <button type="button" onClick={signOut} className="btn btn-ghost btn-sm" title="Sign out">Sign out</button>
         </div>
       </header>
+      {syncError && <div className="flex items-center justify-between gap-3 border-b border-error/30 bg-error/10 px-4 py-2 text-sm text-error md:px-8"><span>{syncError}</span><button type="button" onClick={() => setSyncError(null)} className="btn btn-ghost btn-xs">✕</button></div>}
       <main className="app-page mx-auto w-full max-w-7xl px-4 pt-6 md:px-8"><Outlet context={context} /></main>
       <nav className="app-nav btm-nav fixed z-30 border-t border-base-content/10 bg-base-100 md:hidden" aria-label="Main navigation"><NavLink to="/planner" className={({ isActive }) => isActive ? 'active theme-accent' : ''}><span className="text-lg">☷</span><span className="btm-nav-label">Planner</span></NavLink><NavLink to="/logs" className={({ isActive }) => isActive ? 'active theme-accent' : ''}><span className="text-lg">◷</span><span className="btm-nav-label">Logs</span></NavLink><NavLink to="/progress" className={({ isActive }) => isActive ? 'active theme-accent' : ''}><span className="text-lg">↗</span><span className="btm-nav-label">Progress</span></NavLink></nav>
     </div>

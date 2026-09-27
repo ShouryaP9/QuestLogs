@@ -45,6 +45,16 @@ create table if not exists public.completed_tasks (
   completed_at timestamptz not null default now()
 );
 
+-- Base privileges: RLS policies (below) control *which rows* a role can touch,
+-- but the role needs these grants before RLS is even consulted. Supabase's
+-- dashboard adds these automatically when you create a table through its UI;
+-- since these tables are created via raw SQL, we grant them explicitly here.
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on public.user_settings to authenticated;
+grant select, insert, update, delete on public.themes to authenticated;
+grant select, insert, update, delete on public.tasks to authenticated;
+grant select, insert, update, delete on public.completed_tasks to authenticated;
+
 -- Row Level Security: every table is locked to its own owner
 alter table public.user_settings enable row level security;
 alter table public.themes enable row level security;
