@@ -131,6 +131,15 @@ export function AppLayout() {
     supabase.from('completed_tasks').insert({ user_id: userId, name: task.name, gems: task.gems, theme_id: task.themeId || null, completed_date: date, completed_at: completedAt })
     supabase.from('user_settings').update({ gems: newGems }).eq('user_id', userId)
   }
+  const rolloverToToday = () => {
+    const todayIds = tasks.today.map((task) => task.id)
+    const tomorrowIds = tasks.tomorrow.map((task) => task.id)
+    const carriedOver = tasks.tomorrow.map((task, index) => ({ ...task, id: crypto.randomUUID(), position: Date.now() + index }))
+    setTasks((current) => ({ ...current, today: carriedOver, tomorrow: [] }))
+    if (todayIds.length) supabase.from('tasks').delete().in('id', todayIds)
+    if (carriedOver.length) supabase.from('tasks').insert(carriedOver.map((task) => ({ id: task.id, user_id: userId, column_id: 'today', name: task.name, time: task.time, description: task.description, gems: task.gems, theme_id: task.themeId || null, position: task.position })))
+    if (tomorrowIds.length) supabase.from('tasks').delete().in('id', tomorrowIds)
+  }
   const addTheme = (theme) => {
     setThemes((current) => [...current, theme])
     supabase.from('themes').insert({ id: theme.id, user_id: userId, name: theme.name, color: theme.color })
@@ -151,7 +160,7 @@ export function AppLayout() {
   }
   const signOut = () => supabase.auth.signOut()
 
-  const context = useMemo(() => ({ tasks, logs, themes, gems, goal, addTask, updateTask, removeTask, finishTask, addTheme, updateTheme, deleteTheme, setGoal }), [tasks, logs, themes, gems, goal])
+  const context = useMemo(() => ({ tasks, logs, themes, gems, goal, addTask, updateTask, removeTask, finishTask, rolloverToToday, addTheme, updateTheme, deleteTheme, setGoal }), [tasks, logs, themes, gems, goal])
 
   if (session === undefined) return <div className="app-shell flex min-h-screen items-center justify-center bg-base-200 text-base-content">Loading…</div>
   if (!session) return <AuthScreen />
