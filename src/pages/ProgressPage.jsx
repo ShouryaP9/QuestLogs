@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useOutletContext } from 'react-router-dom'
 
 const BLUE = '#38bdf8'
@@ -8,14 +8,11 @@ function shortDate(date) {
 }
 
 export function ProgressPage() {
-  const { logs, themes } = useOutletContext()
-  const [goal, setGoal] = useState(() => Number(localStorage.getItem('questlogs-goal') || 100))
+  const { logs, themes, goal, setGoal } = useOutletContext()
   const daily = useMemo(() => Object.entries(logs).map(([date, tasks]) => ({ date, gems: tasks.reduce((total, task) => total + task.gems, 0) })).sort((a, b) => a.date.localeCompare(b.date)), [logs])
   const total = daily.reduce((sum, day) => sum + day.gems, 0)
   const distribution = useMemo(() => { const maximum = Math.max(3, ...daily.map((day) => day.gems)); return Array.from({ length: maximum + 1 }, (_, gems) => ({ gems, days: daily.filter((day) => day.gems === gems).length })) }, [daily])
   const byTheme = useMemo(() => themes.map((theme) => ({ ...theme, gems: daily.flatMap((day) => logs[day.date]).filter((task) => task.themeId === theme.id).reduce((sum, task) => sum + task.gems, 0) })), [daily, logs, themes])
-
-  useEffect(() => localStorage.setItem('questlogs-goal', String(goal)), [goal])
 
   return <section className="mx-auto w-full max-w-7xl"><div><p className="theme-accent text-sm font-semibold uppercase tracking-widest">Quest statistics</p><h1 className="page-title text-3xl font-black md:text-4xl">Progress</h1></div><div className="mt-12 max-w-2xl"><div className="flex items-center gap-4"><progress className="quest-progress progress h-8 flex-1" value={Math.min(total, goal || 1)} max={goal || 1} /><span className="gem-count text-lg font-black">x{total}</span></div><label className="form-control mt-8 max-w-sm"><span className="label-text mb-2 font-semibold">Gem goal: </span><input type="number" min="1" value={goal} onChange={(event) => setGoal(Math.max(1, Number(event.target.value) || 1))} className="gem-goal-input input input-bordered" /></label></div><div className="mt-14 space-y-12"><LineChart daily={daily} /><div className="grid gap-12 md:grid-cols-2"><BarChart title="Days by gems earned" values={distribution} label={(item) => `${item.gems} gems`} valueKey="days" color={BLUE} empty="Finish quests to see your daily gem distribution." /><BarChart title="Gems by theme" values={byTheme} label={(item) => item.name} valueKey="gems" color={(item) => item.color} empty="Add themes and finish quests to see this chart." /></div></div></section>
 }
