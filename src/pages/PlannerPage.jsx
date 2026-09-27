@@ -32,7 +32,7 @@ export function PlannerPage() {
 
   return <>
     <div className="mb-6"><p className="theme-accent text-sm font-semibold uppercase tracking-widest">Your quest board</p><h1 className="page-title text-3xl font-black md:text-4xl">Make today count.</h1></div>
-    <section className="grid gap-8 sm:grid-cols-2 xl:-mr-8 xl:grid-cols-4">
+    <section className="grid gap-8 sm:grid-cols-2">
       {columns.map((column) => <article key={column.id} className={`parchment-surface rounded-2xl border border-t-4 ${column.color} p-3 shadow-sm`}>
         <div className="mb-3 flex items-center justify-between"><h2 className="font-bold">{column.title}</h2><span className="badge badge-ghost badge-sm">{tasks[column.id].length}/9</span></div>
         <div className="space-y-2">
