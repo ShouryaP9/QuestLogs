@@ -18,8 +18,8 @@ export default defineConfig({
         display: 'standalone',
         start_url: '/',
         icons: [
-          { src: 'icon-192v4.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
-          { src: 'icon-512v4.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
+          { src: 'icon-192v5.svg', sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
+          { src: 'icon-512v5.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
         ],
       },
     }),
