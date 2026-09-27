@@ -69,3 +69,29 @@ create policy "own completed_tasks" on public.completed_tasks
 
 -- Realtime: broadcast row changes so other logged-in devices update live
 alter publication supabase_realtime add table public.user_settings, public.themes, public.tasks, public.completed_tasks;
+
+-- Auto-delete finished quests from the Logs page 60 days after they were completed.
+-- Runs once a day server-side (not tied to anyone having the app open), so it's
+-- consistent and never fires early/late/randomly.
+create extension if not exists pg_cron;
+
+create or replace function public.delete_old_completed_tasks()
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  delete from public.completed_tasks
+  where completed_at < now() - interval '60 days';
+$$;
+
+do $$
+begin
+  if exists (select 1 from cron.job where jobname = 'delete-old-completed-tasks') then
+    perform cron.unschedule('delete-old-completed-tasks');
+  end if;
+end $$;
+
+-- Runs every night at 03:00 UTC
+select cron.schedule('delete-old-completed-tasks', '0 3 * * *', $$select public.delete_old_completed_tasks();$$);
+
