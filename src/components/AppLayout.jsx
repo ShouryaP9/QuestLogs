@@ -41,6 +41,8 @@ export function AppLayout() {
   const [gems, setGems] = useState(0)
   const [goal, setGoalState] = useState(100)
   const [dataLoaded, setDataLoaded] = useState(false)
+  const [loadError, setLoadError] = useState(null)
+  const [retryTick, setRetryTick] = useState(0)
 
   useEffect(() => { document.documentElement.dataset.theme = colorMode; localStorage.setItem('questlogs-color-mode', colorMode) }, [colorMode])
 
@@ -59,7 +61,7 @@ export function AppLayout() {
     if (!userId) { setDataLoaded(false); return }
     let cancelled = false
 
-    async function load() {
+    async function load(attempt = 0) {
       const [taskRes, themeRes, logRes, settingsRes] = await Promise.all([
         supabase.from('tasks').select('*').eq('user_id', userId),
         supabase.from('themes').select('*').eq('user_id', userId),
@@ -67,11 +69,21 @@ export function AppLayout() {
         supabase.from('user_settings').select('*').eq('user_id', userId).maybeSingle(),
       ])
       if (cancelled) return
+      const failure = taskRes.error || themeRes.error || logRes.error || settingsRes.error
+      if (failure) {
+        // Never render an empty app on a failed fetch (it looks identical to "your data is gone").
+        // Retry a few times with backoff first — e.g. a Supabase free-tier project waking from its
+        // idle pause can take a few seconds before it accepts queries again.
+        if (attempt < 4) { setTimeout(() => load(attempt + 1), 1000 * (attempt + 1)); return }
+        setLoadError(failure.message || 'Could not load your quests.')
+        return
+      }
+      setLoadError(null)
       setTasks(groupTasks(taskRes.data || []))
       setThemes((themeRes.data || []).map(themeFromRow))
       setLogs(groupLogs(logRes.data || []))
       if (settingsRes.data) { setGems(settingsRes.data.gems); setGoalState(settingsRes.data.gem_goal) }
-      else { await supabase.from('user_settings').insert({ user_id: userId, gems: 0, gem_goal: 100 }); setGems(0); setGoalState(100) }
+      else { await supabase.from('user_settings').upsert({ user_id: userId, gems: 0, gem_goal: 100 }, { onConflict: 'user_id', ignoreDuplicates: true }); setGems(0); setGoalState(100) }
       setDataLoaded(true)
     }
     load()
@@ -106,7 +118,7 @@ export function AppLayout() {
       .subscribe()
 
     return () => { cancelled = true; supabase.removeChannel(channel) }
-  }, [userId])
+  }, [userId, retryTick])
 
   // --- mutations (optimistic local update + write to Supabase) -----------
   const addTask = (column, task) => {
@@ -164,6 +176,7 @@ export function AppLayout() {
 
   if (session === undefined) return <div className="app-shell flex min-h-screen items-center justify-center bg-base-200 text-base-content">Loading…</div>
   if (!session) return <AuthScreen />
+  if (loadError) return <div className="app-shell flex min-h-screen flex-col items-center justify-center gap-4 bg-base-200 px-4 text-center text-base-content"><p className="max-w-sm text-sm opacity-80">Couldn't load your quests: {loadError}. Your data is safe on the server — this is just a connection hiccup.</p><button type="button" className="btn parchment-button" onClick={() => { setLoadError(null); setRetryTick((tick) => tick + 1) }}>Try again</button></div>
   if (!dataLoaded) return <div className="app-shell flex min-h-screen items-center justify-center bg-base-200 text-base-content">Loading your quests…</div>
 
   return (
