@@ -30,9 +30,14 @@ create table if not exists public.tasks (
   description text not null default '',
   gems integer not null default 0,
   theme_id uuid references public.themes(id) on delete set null,
-  position integer not null default 0,
+  position bigint not null default 0,
   created_at timestamptz not null default now()
 );
+
+-- Migration: earlier versions of this schema created "position" as integer,
+-- which overflows for the Date.now()-based values the app uses. Safe to
+-- re-run; a no-op once the column is already bigint.
+alter table public.tasks alter column position type bigint;
 
 -- Finished quests, one row per completion (this is the "logs" history)
 create table if not exists public.completed_tasks (
