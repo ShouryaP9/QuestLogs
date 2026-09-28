@@ -44,6 +44,7 @@ export function AppLayout() {
   const [loadError, setLoadError] = useState(null)
   const [retryTick, setRetryTick] = useState(0)
   const [syncError, setSyncError] = useState(null)
+  const [gemResetOpen, setGemResetOpen] = useState(false)
 
   useEffect(() => { document.documentElement.dataset.theme = colorMode; localStorage.setItem('questlogs-color-mode', colorMode) }, [colorMode])
 
@@ -173,6 +174,10 @@ export function AppLayout() {
     setGoalState(nextGoal)
     reportIfFailed(supabase.from('user_settings').update({ gem_goal: nextGoal }).eq('user_id', userId), 'update gem goal')
   }
+  const resetGems = () => {
+    setGems(0)
+    reportIfFailed(supabase.from('user_settings').update({ gems: 0 }).eq('user_id', userId), 'reset gems')
+  }
   const signOut = () => supabase.auth.signOut()
 
   const context = useMemo(() => ({ tasks, logs, themes, gems, goal, addTask, updateTask, removeTask, finishTask, rolloverToToday, addTheme, updateTheme, deleteTheme, setGoal }), [tasks, logs, themes, gems, goal])
@@ -188,12 +193,13 @@ export function AppLayout() {
         <div className="navbar-start"><NavLink to="/planner" className="text-xl font-black tracking-tight"><span className="brand-quest">Quest</span><span className="theme-accent">Logs</span></NavLink></div>
         <nav className="navbar-center hidden gap-2 md:flex" aria-label="Main navigation"><NavLink to="/planner" className={navClass}>Planner</NavLink><NavLink to="/logs" className={navClass}>Logs</NavLink><NavLink to="/progress" className={navClass}>Progress</NavLink></nav>
         <div className="navbar-end gap-2">
-          <span className="badge badge-lg gap-1 border-primary/30 bg-primary/10 px-3 font-bold" title="Gems earned">💎 {gems}</span>
+          <button type="button" onClick={() => setGemResetOpen(true)} className="badge badge-lg gap-1 border-primary/30 bg-primary/10 px-3 font-bold" title="Gems earned">💎 {gems}</button>
           <button type="button" className="btn btn-ghost btn-circle btn-sm text-lg" style={colorMode === 'light' ? { color: '#FFD700' } : undefined} title={`Theme: ${colorMode} (click to switch)`} aria-label={`Switch theme, currently ${colorMode}`} onClick={() => setColorMode(themeOrder[(themeOrder.indexOf(colorMode) + 1) % themeOrder.length])}>{themeIcon[colorMode]}</button>
           <button type="button" onClick={signOut} className="btn btn-ghost btn-sm" title="Sign out">Sign out</button>
         </div>
       </header>
       {syncError && <div className="flex items-center justify-between gap-3 border-b border-error/30 bg-error/10 px-4 py-2 text-sm text-error md:px-8"><span>{syncError}</span><button type="button" onClick={() => setSyncError(null)} className="btn btn-ghost btn-xs">✕</button></div>}
+      <dialog className={`modal ${gemResetOpen ? 'modal-open' : ''}`}><div className="parchment-surface modal-box"><button onClick={() => setGemResetOpen(false)} className="parchment-close btn btn-sm btn-circle btn-ghost absolute right-3 top-3">✕</button><h2 className="text-xl font-bold">Reset your gems?</h2><p className="mt-1 text-sm opacity-70">This sets your gem count back to 0. It doesn't touch your quest logs, themes, or planner. This can't be undone.</p><div className="mt-6 grid gap-3"><button onClick={() => { resetGems(); setGemResetOpen(false) }} className="btn parchment-button">Reset</button><button onClick={() => setGemResetOpen(false)} className="btn parchment-button">Cancel</button></div></div></dialog>
       <main className="app-page mx-auto w-full max-w-7xl px-4 pt-6 md:px-8"><Outlet context={context} /></main>
       <nav className="app-nav btm-nav fixed z-30 border-t border-base-content/10 bg-base-100 md:hidden" aria-label="Main navigation"><NavLink to="/planner" className={({ isActive }) => isActive ? 'active theme-accent' : ''}><span className="text-lg">☷</span><span className="btm-nav-label">Planner</span></NavLink><NavLink to="/logs" className={({ isActive }) => isActive ? 'active theme-accent' : ''}><span className="text-lg">◷</span><span className="btm-nav-label">Logs</span></NavLink><NavLink to="/progress" className={({ isActive }) => isActive ? 'active theme-accent' : ''}><span className="text-lg">↗</span><span className="btm-nav-label">Progress</span></NavLink></nav>
     </div>
