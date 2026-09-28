@@ -81,7 +81,7 @@
   [data-theme="aqua"] .app-header, [data-theme="aqua"] .app-nav { background-color: #00679f !important; }
   [data-theme="frost"] .app-shell { background-color: #dceefc !important; }
   [data-theme="frost"] .app-header, [data-theme="frost"] .app-nav { background-color: #bae6fd !important; }
-  [data-theme="frost"] .navbar-center .btn-active, [data-theme="light"] .navbar-center .btn-active { background-color: #60a5fa !important; border-color: #60a5fa !important; color: #ffffff !important; }
+  [data-theme="frost"] .navbar-center .btn-active, [data-theme="light"] .navbar-center .btn-active, [data-theme="frost"] .mobile-nav .btn-active, [data-theme="light"] .mobile-nav .btn-active { background-color: #60a5fa !important; border-color: #60a5fa !important; color: #ffffff !important; }
   [data-theme="frost"] .app-nav a.active, [data-theme="light"] .app-nav a.active { color: #60a5fa !important; }
   [data-theme="light"] .app-shell { background-color: #ffffff !important; }
   [data-theme="light"] .app-header, [data-theme="light"] .app-nav { background-color: #dceefc !important; }
@@ -135,4 +135,26 @@
 
 @media (min-width: 768px) {
   .app-page { padding-bottom: 2rem; }
+}
+
+/* iPhone / small screens only: two-row header (brand + gems/theme/sign out, then Planner/Logs/Progress),
+   pushed below the status bar / notch. Nothing here applies at >= 768px. */
+@media (max-width: 767px) {
+  .app-header {
+    flex-wrap: wrap;
+    align-items: center;
+    min-height: 0;
+    row-gap: .25rem;
+    padding-top: calc(env(safe-area-inset-top, 0px) + .5rem);
+    padding-bottom: .5rem;
+    padding-left: max(1rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  }
+  .app-header .navbar-start { width: auto; flex: 1 1 auto; min-width: 0; }
+  .app-header .navbar-end { width: auto; flex: 0 0 auto; flex-wrap: nowrap; gap: .25rem; }
+  .app-header .navbar-end .badge { flex-shrink: 0; height: 2rem; white-space: nowrap; padding-inline: .625rem; }
+  .app-header .navbar-end .btn { flex-shrink: 0; white-space: nowrap; }
+  .app-header .mobile-nav { display: flex; width: 100%; gap: .5rem; }
+  .app-header .mobile-nav .btn { flex: 1 1 0; min-height: 2.5rem; }
+  .app-page { padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px)); }
 }
