@@ -139,10 +139,11 @@ export function AppLayout() {
     removeTask(column, task.id)
     const date = localDateKey()
     const completedAt = new Date().toISOString()
-    setLogs((current) => ({ ...current, [date]: [{ id: task.id, name: task.name, gems: task.gems, themeId: task.themeId, completedAt }, ...(current[date] || [])] }))
+    const logId = crypto.randomUUID()
+    setLogs((current) => ({ ...current, [date]: [{ id: logId, name: task.name, gems: task.gems, themeId: task.themeId, completedAt }, ...(current[date] || [])] }))
     const newGems = gems + task.gems
     setGems(newGems)
-    reportIfFailed(supabase.from('completed_tasks').insert({ user_id: userId, name: task.name, gems: task.gems, theme_id: task.themeId || null, completed_date: date, completed_at: completedAt }), 'log finished quest')
+    reportIfFailed(supabase.from('completed_tasks').insert({ id: logId, user_id: userId, name: task.name, gems: task.gems, theme_id: task.themeId || null, completed_date: date, completed_at: completedAt }), 'log finished quest')
     reportIfFailed(supabase.from('user_settings').update({ gems: newGems }).eq('user_id', userId), 'update gem total')
   }
   const rolloverToToday = () => {
