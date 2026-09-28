@@ -77,8 +77,23 @@ drop policy if exists "own completed_tasks" on public.completed_tasks;
 create policy "own completed_tasks" on public.completed_tasks
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
--- Realtime: broadcast row changes so other logged-in devices update live
-alter publication supabase_realtime add table public.user_settings, public.themes, public.tasks, public.completed_tasks;
+-- Realtime: broadcast row changes so other logged-in devices update live.
+-- Wrapped so this is safe to re-run even after the tables are already added.
+do $$
+begin
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'user_settings') then
+    alter publication supabase_realtime add table public.user_settings;
+  end if;
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'themes') then
+    alter publication supabase_realtime add table public.themes;
+  end if;
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'tasks') then
+    alter publication supabase_realtime add table public.tasks;
+  end if;
+  if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'completed_tasks') then
+    alter publication supabase_realtime add table public.completed_tasks;
+  end if;
+end $$;
 
 -- Auto-delete finished quests from the Logs page 60 days after they were completed.
 -- Runs once a day server-side (not tied to anyone having the app open), so it's
