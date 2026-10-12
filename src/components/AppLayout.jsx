@@ -147,6 +147,11 @@ export function AppLayout() {
     reportIfFailed(supabase.from('completed_tasks').insert({ id: logId, user_id: userId, name: task.name, gems: task.gems, theme_id: task.themeId || null, completed_date: date, completed_at: completedAt }), 'log finished quest')
     reportIfFailed(supabase.from('user_settings').update({ gems: newGems }).eq('user_id', userId), 'update gem total')
   }
+  const moveTask = (fromColumn, toColumn, task) => {
+    const position = Date.now()
+    setTasks((current) => ({ ...current, [fromColumn]: current[fromColumn].filter((item) => item.id !== task.id), [toColumn]: [...current[toColumn].filter((item) => item.id !== task.id), { ...task, position }] }))
+    reportIfFailed(supabase.from('tasks').update({ column_id: toColumn, position }).eq('id', task.id), 'move quest')
+  }
   const rolloverToToday = () => {
     const todayIds = tasks.today.map((task) => task.id)
     const tomorrowIds = tasks.tomorrow.map((task) => task.id)
@@ -180,7 +185,7 @@ export function AppLayout() {
   }
   const signOut = () => supabase.auth.signOut()
 
-  const context = useMemo(() => ({ tasks, logs, themes, gems, goal, addTask, updateTask, removeTask, finishTask, rolloverToToday, addTheme, updateTheme, deleteTheme, setGoal }), [tasks, logs, themes, gems, goal])
+  const context = useMemo(() => ({ tasks, logs, themes, gems, goal, addTask, updateTask, removeTask, finishTask, moveTask, rolloverToToday, addTheme, updateTheme, deleteTheme, setGoal }), [tasks, logs, themes, gems, goal])
 
   if (session === undefined) return <div className="app-shell flex min-h-screen items-center justify-center bg-base-200 text-base-content">Loading…</div>
   if (!session) return <AuthScreen />
