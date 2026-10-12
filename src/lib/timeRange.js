@@ -1,8 +1,9 @@
 // Helpers for the quest "Time" box.
 // Values are stored as plain text like "7:30am-10:00am" (or just "7:30am" for a start time only).
-// Older "7:30 AM - 10:00 AM" values are still understood.
+// Older "7:30 AM - 10:00 AM" values are still understood, and shorthand like "330-430pm" or "10-3" is
+// filled in (see parseValue) so the second time lands after the first.
 
-const TIME_PATTERN = /^(\d{1,2})(?::(\d{2}))?\s*(am|pm)(?:\s*-\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm))?$/i
+const TIME_PATTERN = /^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?(?:\s*-\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?)?$/i
 
 // Typed digits have no separators, so work out where the hour ends:
 // "730" -> 7:30, "1030" -> 10:30, "10" -> hour 10 (still waiting on minutes).
@@ -22,7 +23,7 @@ function isValidDigits(digits) {
 }
 
 // Reads raw typed characters (digits, a/p/m and "-") into a start time and an optional end time.
-// Only the colon is added automatically: the "-" and am/pm have to be typed.
+// Only the colon is added automatically: the "-" and any am/pm have to be typed.
 function parse(raw) {
   const times = [{ digits: '', letter: '', m: false }]
   let dash = false
@@ -37,7 +38,9 @@ function parse(raw) {
     } else if (char === 'M') {
       if (current.letter) current.m = true
     } else if (char === '-') {
-      if (!dash && current.m) { dash = true; times.push({ digits: '', letter: '', m: false }) }
+      const { hour, minute } = split(current.digits)
+      const finished = current.digits && hour !== '0' && minute.length !== 1 && (!current.letter || current.m)
+      if (!dash && finished) { dash = true; times.push({ digits: '', letter: '', m: false }) }
     }
   }
   return { times, dash }
@@ -68,17 +71,41 @@ export function nextTimeValue(previous, typed) {
 
 const validPart = (hour, minute) => Number(hour) >= 1 && Number(hour) <= 12 && Number(minute) <= 59
 
-// Reads a stored value into { start, end } parts, or null when it isn't a complete valid time.
+// Reads a value into { start, end } parts, or null when it isn't a complete, unambiguous time.
+// A missing am/pm is inferred so the second time comes after the first:
+//   "330-430pm" -> 3:30pm-4:30pm   (second is later: same am/pm)
+//   "10-3pm"    -> 10am-3pm        (second is earlier: the range crosses noon/midnight)
+//   "10-3"      -> 10am-3pm        (neither given and the second is earlier)
+// A lone time needs an am/pm, and so does "9-11" (no way to know which half of the day).
 function parseValue(value) {
   const match = TIME_PATTERN.exec((value || '').trim())
-  if (!match || !validPart(match[1], match[2] || '00') || (match[4] && !validPart(match[4], match[5] || '00'))) return null
-  const part = (hour, minute, period) => ({ hour: String(Number(hour)), minute: minute || '00', period: period.toLowerCase() })
-  return { start: part(match[1], match[2], match[3]), end: match[4] ? part(match[4], match[5], match[6]) : null }
+  if (!match) return null
+  const [, hour1, minute1 = '00', period1, hour2, minute2 = '00', period2] = match
+  if (!validPart(hour1, minute1) || (hour2 && !validPart(hour2, minute2))) return null
+  const part = (hour, minute, period) => ({ hour: String(Number(hour)), minute, period: period ? period.toLowerCase() : '' })
+  const start = part(hour1, minute1, period1)
+  if (!hour2) return start.period ? { start, end: null } : null
+  const end = part(hour2, minute2, period2)
+  const clock = (hour, minute) => (Number(hour) % 12) * 60 + Number(minute) // 12 counts as 0, so 12:30 comes before 1:00
+  const startClock = clock(hour1, minute1)
+  const endClock = clock(hour2, minute2)
+  const later = endClock > startClock
+  const opposite = (period) => (period === 'am' ? 'pm' : 'am')
+  if (!start.period || !end.period) {
+    if (endClock === startClock) return null
+    if (!start.period && !end.period) {
+      if (later) return null
+      start.period = 'am'
+      end.period = 'pm'
+    } else if (!start.period) start.period = later ? end.period : opposite(end.period)
+    else end.period = later ? start.period : opposite(start.period)
+  }
+  return { start, end }
 }
 
 export function timeError(value) {
   if (!value) return null
-  return parseValue(value) ? null : 'Finish the time, like 7:30am-10:00am (or just a start time).'
+  return parseValue(value) ? null : 'Finish the time, like 330-430pm, 10-3 or 7:30am-10:00am (a lone start time needs am/pm).'
 }
 
 // Canonical stored/typed form: "7:30am-10:00am". Anything unparseable is returned untouched.
