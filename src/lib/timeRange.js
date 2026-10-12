@@ -2,7 +2,7 @@
 // Values are stored as plain text like "7:30am-10:00am" (or just "7:30am" for a start time only).
 // Older "7:30 AM - 10:00 AM" values are still understood.
 
-const TIME_PATTERN = /^(\d{1,2}):(\d{2})\s*(am|pm)(?:\s*-\s*(\d{1,2}):(\d{2})\s*(am|pm))?$/i
+const TIME_PATTERN = /^(\d{1,2})(?::(\d{2}))?\s*(am|pm)(?:\s*-\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm))?$/i
 
 // Typed digits have no separators, so work out where the hour ends:
 // "730" -> 7:30, "1030" -> 10:30, "10" -> hour 10 (still waiting on minutes).
@@ -21,40 +21,44 @@ function isValidDigits(digits) {
   return true
 }
 
-// Reads raw typed characters (digits plus A/P) into up to two times: start and end.
+// Reads raw typed characters (digits, a/p/m and "-") into a start time and an optional end time.
+// Only the colon is added automatically: the "-" and am/pm have to be typed.
 function parse(raw) {
-  const times = [{ digits: '', period: '' }]
+  const times = [{ digits: '', letter: '', m: false }]
+  let dash = false
   for (const char of raw) {
-    let current = times[times.length - 1]
+    const current = times[times.length - 1]
     if (char >= '0' && char <= '9') {
-      if (current.period) {
-        if (times.length === 2) continue // both times are finished; ignore extra digits
-        current = { digits: '', period: '' }
-        times.push(current)
-      }
-      if (isValidDigits(current.digits + char)) current.digits += char
-    } else if (!current.period && current.digits) {
+      if (!current.letter && isValidDigits(current.digits + char)) current.digits += char
+    } else if (char === 'A' || char === 'P') {
+      if (current.letter || !current.digits) continue
       const { hour, minute } = split(current.digits)
-      if (hour !== '0' && minute.length !== 1) current.period = char // wait for both minute digits, or none (meaning :00)
+      if (hour !== '0' && minute.length !== 1) current.letter = char // wait for both minute digits, or none
+    } else if (char === 'M') {
+      if (current.letter) current.m = true
+    } else if (char === '-') {
+      if (!dash && current.m) { dash = true; times.push({ digits: '', letter: '', m: false }) }
     }
   }
-  return times.filter((time) => time.digits)
+  return { times, dash }
 }
 
-function renderTime({ digits, period }) {
+function renderTime({ digits, letter, m }) {
+  if (!digits) return ''
   const { hour, minute } = split(digits)
-  const showMinutes = minute || period
-  return `${Number(hour)}${showMinutes ? `:${minute || '00'}` : ''}${period ? `${period.toLowerCase()}m` : ''}`
+  return `${Number(hour)}${minute ? `:${minute}` : ''}${letter.toLowerCase()}${m ? 'm' : ''}`
 }
 
-const toRaw = (value) => value.toUpperCase().replace(/[^0-9AP]/g, '')
-const formatRaw = (raw) => parse(raw).map(renderTime).join('-')
+const toRaw = (value) => value.toUpperCase().replace(/[^0-9APM-]/g, '')
+const formatRaw = (raw) => {
+  return parse(raw).times.map(renderTime).join('-') // a trailing "-" stays visible while the end time is still empty
+}
 
-// Call from the input's onChange. Typing "730AM1000AM" builds up "7:30 AM - 10:00 AM".
+// Call from the input's onChange. Typing "730am-1000am" builds up "7:30am-10:00am".
 export function nextTimeValue(previous, typed) {
   let raw = toRaw(typed)
   let formatted = formatRaw(raw)
-  // Backspacing over formatting characters (":", " ", "M") would just get re-added, so drop a real character instead.
+  // Backspacing over the auto-added colon would just get re-added, so drop a real character instead.
   if (typed.length < previous.length && formatted === previous) {
     raw = raw.slice(0, -1)
     formatted = formatRaw(raw)
@@ -67,8 +71,8 @@ const validPart = (hour, minute) => Number(hour) >= 1 && Number(hour) <= 12 && N
 // Reads a stored value into { start, end } parts, or null when it isn't a complete valid time.
 function parseValue(value) {
   const match = TIME_PATTERN.exec((value || '').trim())
-  if (!match || !validPart(match[1], match[2]) || (match[4] && !validPart(match[4], match[5]))) return null
-  const part = (hour, minute, period) => ({ hour: String(Number(hour)), minute, period: period.toLowerCase() })
+  if (!match || !validPart(match[1], match[2] || '00') || (match[4] && !validPart(match[4], match[5] || '00'))) return null
+  const part = (hour, minute, period) => ({ hour: String(Number(hour)), minute: minute || '00', period: period.toLowerCase() })
   return { start: part(match[1], match[2], match[3]), end: match[4] ? part(match[4], match[5], match[6]) : null }
 }
 
